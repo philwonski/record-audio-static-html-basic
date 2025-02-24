@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Audio Recorder</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+<style>
+    a.button, .button {
+      background-color: red; /* Red background */
+      border: none; /* No borders */
+      color: white; /* White text */
+      padding: 10px 20px; /* Some padding */
+      text-align: center; /* Centered text */
+      text-decoration: none; /* No underline */
+      display: inline-block; /* Set a display type */
+      font-size: 16px; /* Set font size */
+      margin: 4px 2px; /* Add some margin */
+      cursor: pointer; /* Pointer/hand icon */
+      border-radius: 8px; /* Rounded corners */
+      transition-duration: 0.4s; /* Smooth transition for hover effect */
+      min-height: 100px;
+    }
+  
+    .button:hover {
+      background-color: #e60000; /* Darker red background on hover */
+    }
+  
+    .button i {
+      margin-right: 5px; /* Space between icon and text */
+    }
+  
+    #statusMessage {
+      margin-top: 20px;
+      color: red;
+    }
+  
+    #statusMessage {
+    margin-top: 20px;
+    /*text-align: center;*/
+    color: red;
+  }
+
+  .button-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh; /* Full viewport height */
+  }
+
+  @media (max-width: 600px) {
+    a.button, .button {
+      display: block;
+      width: calc(100% - 20px);
+      margin: 10px auto;
+    }
+  }
+
+  @media (min-width: 601px) {
+    a.button, .button {
+      display: block;
+      width: calc(100% - 20px);
+      max-width: 800px; /* Maximum width of 800px */
+      margin: 10px auto;
+    }
+  }
+
+  a.bottom-buttons, .bottom-buttons {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    background-color: white; /* Or any other color */
+    padding: 10px 0; /* Add some padding */
+}
+
+.bottom-buttons .button {
+    margin: 0 10px; /* Spacing between buttons */
+}
+
+</style>
+  
+</head>
+<body>
+    <div class="button-container">
+        <button id="recordButton" class="button"><i class="fas fa-microphone"></i> Start Recording</button>
+        <button id="pauseButton" class="button" style="display:none;"><i class="fas fa-pause"></i> Pause Recording</button>
+        <button id="resumeButton" class="button" style="display:none;"><i class="fas fa-play"></i> Resume Recording</button>
+        <button id="saveButton" class="button" style="display:none;"><i class="fas fa-save"></i> Save Recording</button>
+        <span id="statusMessage"></span>
+    </div>
+
+
+<div class="bottom-buttons">
+    <a href="itranscripts.html" class="button" style="background-color: gray;">Transcripts</a>
+    <button class="button" style="background-color: gray;" onclick="refreshPage()">Refresh</button>
+</div>
+
+
+<script src="https://cdn.WebRTC-Experiment.com/RecordRTC.js"></script>
+<script>
+    let recorder;
+    let audioStream;
+    let isRecording = false;
+
+    // Function to fetch presigned URL from your endpoint
+    function fetchPresignedUrl() {
+      const ts = new Date().getTime();
+      function formatTimestamp(timestamp) {
+        const date = new Date(timestamp);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}-${hours}-${minutes}`;
+        }
+      var stamp = formatTimestamp(ts)
+      var baseurl = 'HTTPS://your-presigned-url-endpoint.com'; // Replace with your base URL
+      var filename = `000000000000000000.json-${stamp}-imobile-recording.wav`; 
+      var endpoint = `${baseurl}?opp=${filename}`;
+      return fetch(endpoint) // Replace with your endpoint URL
+        .then(response => response.json())
+        .then(data => data.url); // Adjust according to your response structure
+    }
+
+    document.getElementById('recordButton').addEventListener('click', () => {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+            audioStream = stream;
+            recorder = RecordRTC(stream, { type: 'audio' });
+            recorder.startRecording();
+            isRecording = true;
+            toggleButtons();
+        })
+        .catch(error => {
+            console.error("Error accessing microphone:", error);
+            document.getElementById('statusMessage').textContent = 'Error accessing microphone.';
+        });
+    });
+
+    document.getElementById('pauseButton').addEventListener('click', () => {
+        if (recorder && isRecording) {
+            recorder.pauseRecording();
+            toggleButtons(false);
+        }
+    });
+
+    document.getElementById('resumeButton').addEventListener('click', () => {
+        if (recorder && !isRecording) {
+            recorder.resumeRecording();
+            toggleButtons(true);
+        }
+    });
+
+    document.getElementById('saveButton').addEventListener('click', () => {
+        recorder.stopRecording(() => {
+            let audioBlob = recorder.getBlob();
+            audioStream.getTracks().forEach(track => track.stop());
+
+            fetchPresignedUrl()
+            .then(presignedUrl => {
+              return fetch(presignedUrl, {
+                method: "PUT",
+                body: audioBlob,
+                headers: {
+                  "Content-Type": "audio/wav"
+                }
+              });
+            })
+            .then(response => {
+              if (response.status === 200) {
+                document.getElementById('statusMessage').textContent = 'Recording saved!';
+              } else {
+                document.getElementById('statusMessage').textContent = 'Upload failed with status: ' + response.status;
+              }
+              // Hide all buttons after saving
+              document.getElementById('recordButton').style.display = 'none';
+              document.getElementById('pauseButton').style.display = 'none';
+              document.getElementById('resumeButton').style.display = 'none';
+              document.getElementById('saveButton').style.display = 'none';
+            })
+            .catch(error => {
+              console.error("Error uploading file:", error);
+              document.getElementById('statusMessage').textContent = 'Error uploading file.';
+              // Hide all buttons after saving
+              document.getElementById('recordButton').style.display = 'none';
+              document.getElementById('pauseButton').style.display = 'none';
+              document.getElementById('resumeButton').style.display = 'none';
+              document.getElementById('saveButton').style.display = 'none';
+            });
+        });
+    });
+
+    function toggleButtons(isRecordingNow = true) {
+        document.getElementById('recordButton').style.display = isRecordingNow ? 'none' : 'inline';
+        document.getElementById('pauseButton').style.display = isRecordingNow ? 'inline' : 'none';
+        document.getElementById('resumeButton').style.display = isRecordingNow ? 'none' : 'inline';
+        document.getElementById('saveButton').style.display = isRecordingNow ? 'inline' : 'none';
+        isRecording = isRecordingNow;
+    }
+
+    function refreshPage() {
+        window.location.reload();
+    }
+</script>
+
+  
+</body>
+</html>
