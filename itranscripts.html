@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accordion Example</title>
+    <style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+}
+
+.accordion {
+    background-color: #eee;
+    color: #444;
+    cursor: pointer;
+    padding: 18px;
+    width: 100%;
+    border: none;
+    text-align: left;
+    outline: none;
+    font-size: 15px;
+    transition: 0.4s;
+    border-bottom: 1px solid #ddd;
+}
+
+.active, .accordion:hover {
+    background-color: #ccc;
+}
+
+.panel {
+    padding: 0 18px;
+    background-color: white;
+    display: none;
+    overflow: hidden;
+}
+
+
+.back-button {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background-color: gray; /* Green */
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <a href="iphonerecorder2.html" class="back-button">Back</a>
+
+    <div id="accordion-container" style="margin-top: 70px;"></div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+    fetch('https://PIPDDREAM-URL.com')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('accordion-container');
+            const filteredData = data.filter(key => key.includes('mobile-'));
+            filteredData.sort((a, b) => b.substring(24).localeCompare(a.substring(24)));;
+
+            filteredData.forEach(fullKey => {
+                const trimmedKey = fullKey.substring(24); 
+                const accordion = document.createElement('button');
+                accordion.className = 'accordion';
+                accordion.innerText = trimmedKey;
+                const panel = document.createElement('div');
+                panel.className = 'panel';
+
+                container.appendChild(accordion);
+                container.appendChild(panel);
+
+                accordion.addEventListener('click', function() {
+                    this.classList.toggle('active');
+                    const panel = this.nextElementSibling;
+                    if (panel.style.display === 'block') {
+                        panel.style.display = 'none';
+                    } else {
+                        panel.style.display = 'block';
+                        fetchDataForAccordion(fullKey, panel);
+                    }
+                });
+            });
+        })
+        .catch(error => console.error('Error:', error));
+});
+
+function fetchDataForAccordion(key, panel) {
+    const url = `https://AWS-URL.com${key}-rawtext.json`; // Replace with your endpoint URL
+    const headers = {
+        'X-Api-Key': 'key' // Replace with your API key
+    };
+
+    fetch(url, { headers: headers })
+        .then(response => response.json())
+        .then(data => {
+            // Update the panel content with the data
+            panel.innerText = JSON.stringify(data); // Customize this as needed
+        })
+        .catch(error => {
+            console.error('Error fetching data:', error);
+            panel.innerText = 'Error loading data';
+        });
+}
+
+    </script>
+
+</body>
+</html>
